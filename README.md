@@ -1,36 +1,249 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Platforma Komunikacyjna UKNF
 
-## Getting Started
+System komunikacyjny Urzędu Komisji Nadzoru Finansowego (UKNF) umożliwiający bezpieczną komunikację między UKNF a podmiotami nadzorowanymi.
 
-First, run the development server:
+## 🚀 Funkcjonalności
+
+### Moduł Komunikacyjny
+- **Sprawozdania** - składanie sprawozdań elektronicznych z automatyczną walidacją
+- **Wiadomości** - bezpieczna komunikacja między UKNF a podmiotami
+- **Sprawy** - zarządzanie sprawami i dokumentami
+- **Ogłoszenia** - publikowanie i potwierdzanie ogłoszeń
+- **Biblioteka** - repozytorium dokumentów i szablonów
+- **Podmioty** - kartoteka podmiotów nadzorowanych
+- **FAQ** - baza wiedzy i odpowiedzi na pytania
+
+### System Uwierzytelniania i Autoryzacji
+- **NextAuth.js** z providerem credentials
+- **RBAC** (Role-Based Access Control)
+- **Rejestracja** użytkowników zewnętrznych
+- **Wnioski o dostęp** do podmiotów nadzorowanych
+
+### Moduł Administracyjny
+- Zarządzanie użytkownikami i rolami
+- Polityka haseł
+- Logi audytowe
+- Konfiguracja systemu
+
+## 🛠️ Technologie
+
+- **Frontend/Backend**: Next.js 15 (App Router)
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Baza danych**: MS SQL Server + Prisma ORM
+- **Autoryzacja**: NextAuth.js
+- **Storage**: MinIO (S3 compatible)
+- **Antivirus**: ClamAV
+- **Cache**: Redis
+- **Kolejki**: RabbitMQ (opcjonalnie)
+- **Testy**: Vitest + Playwright
+- **Konteneryzacja**: Docker Compose
+
+## 📋 Wymagania
+
+- Node.js 18+
+- Docker & Docker Compose
+- Git
+
+## 🚀 Szybki start
+
+### 1. Klonowanie repozytorium
+
+```bash
+git clone <repository-url>
+cd uknfhackyeah
+```
+
+### 2. Konfiguracja środowiska
+
+```bash
+cp env.example .env.local
+```
+
+Edytuj plik `.env.local` i ustaw odpowiednie wartości:
+
+```env
+DATABASE_URL="sqlserver://sa:Your_Strong!Passw0rd@localhost:1433;database=uknf_app;encrypt=true;trustServerCertificate=true"
+NEXTAUTH_SECRET="dev_secret_change_me"
+NEXTAUTH_URL="http://localhost:3000"
+S3_ENDPOINT="http://minio:9000"
+S3_ACCESS_KEY="minio"
+S3_SECRET_KEY="miniosecret"
+S3_BUCKET="uknf-files"
+CLAMAV_HOST="clamav"
+CLAMAV_PORT="3310"
+RABBITMQ_URL="amqp://guest:guest@rabbitmq:5672/"
+REDIS_URL="redis://redis:6379"
+```
+
+### 3. Uruchomienie z Docker Compose
+
+```bash
+docker compose up -d
+```
+
+To polecenie uruchomi:
+- Aplikację Next.js na porcie 3000
+- MS SQL Server na porcie 1433
+- MinIO na portach 9000 (API) i 9001 (Console)
+- ClamAV na porcie 3310
+- Redis na porcie 6379
+- RabbitMQ na portach 5672 i 15672
+
+### 4. Dostęp do aplikacji
+
+- **Aplikacja**: http://localhost:3000
+- **MinIO Console**: http://localhost:9001 (minio/miniosecret)
+- **RabbitMQ Management**: http://localhost:15672 (guest/guest)
+
+## 👥 Konta demo
+
+Po uruchomieniu aplikacji dostępne są następujące konta:
+
+### UKNF (pracownicy)
+- **Admin**: admin@uknf.gov.pl / password123
+- **Worker**: worker@uknf.gov.pl / password123
+
+### Podmioty nadzorowane
+- **Admin**: admin@bank.pl / password123
+- **Employee**: employee@bank.pl / password123
+
+## 📁 Struktura projektu
+
+```
+uknfhackyeah/
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── (auth)/            # Strony uwierzytelniania
+│   │   ├── (dashboard)/       # Dashboard i główne strony
+│   │   ├── api/               # API routes
+│   │   └── communication/     # Moduł komunikacyjny
+│   ├── components/            # Komponenty React
+│   └── lib/                   # Utilities i konfiguracja
+├── prisma/                    # Schema bazy danych i migracje
+├── docker-compose.yml         # Konfiguracja Docker
+├── Dockerfile                 # Obraz aplikacji
+└── README.md
+```
+
+## 🔧 Rozwój
+
+### Instalacja zależności
+
+```bash
+npm install
+```
+
+### Uruchomienie w trybie deweloperskim
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Generowanie klienta Prisma
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run prisma:generate
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Uruchomienie migracji
 
-## Learn More
+```bash
+npm run prisma:migrate
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Seed bazy danych
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run prisma:seed
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Testy
 
-## Deploy on Vercel
+```bash
+# Testy jednostkowe
+npm run test
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Testy e2e
+npm run test:e2e
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🗄️ Baza danych
+
+### Migracje
+
+```bash
+# Tworzenie nowej migracji
+npx prisma migrate dev --name migration_name
+
+# Aplikowanie migracji
+npx prisma migrate deploy
+
+# Reset bazy danych
+npx prisma migrate reset
+```
+
+### Prisma Studio
+
+```bash
+npx prisma studio
+```
+
+## 🔒 Bezpieczeństwo
+
+- **CSRF Protection** - NextAuth.js
+- **Rate Limiting** - 60 req/min na IP
+- **Antivirus Scanning** - ClamAV dla uploadowanych plików
+- **Audit Logging** - pełne logowanie działań użytkowników
+- **RBAC** - kontrola dostępu oparta na rolach
+- **Input Validation** - Zod schemas
+- **File Upload Security** - walidacja typów i rozmiarów plików
+
+## 📊 Monitoring i logi
+
+### Logi aplikacji
+
+```bash
+docker compose logs -f web
+```
+
+### Logi bazy danych
+
+```bash
+docker compose logs -f mssql
+```
+
+### Health checks
+
+Wszystkie serwisy mają skonfigurowane health checks dostępne w Docker Compose.
+
+## 🚀 Deployment
+
+### Produkcja
+
+1. Ustaw zmienne środowiskowe produkcyjne
+2. Zbuduj obraz: `docker build -t uknf-platform .`
+3. Uruchom: `docker compose -f docker-compose.prod.yml up -d`
+
+### HTTPS
+
+Aplikacja jest gotowa do terminacji HTTPS na reverse proxy (nginx, traefik).
+
+## 🤝 Wkład w rozwój
+
+1. Fork repozytorium
+2. Utwórz branch dla funkcjonalności (`git checkout -b feature/amazing-feature`)
+3. Commit zmian (`git commit -m 'Add amazing feature'`)
+4. Push do brancha (`git push origin feature/amazing-feature`)
+5. Otwórz Pull Request
+
+## 📝 Licencja
+
+Ten projekt jest własnością Urzędu Komisji Nadzoru Finansowego.
+
+## 📞 Wsparcie
+
+W przypadku problemów lub pytań, skontaktuj się z zespołem deweloperskim UKNF.
+
+---
+
+**Uwaga**: To jest demo systemu. W środowisku produkcyjnym należy zastosować odpowiednie zabezpieczenia i konfigurację.

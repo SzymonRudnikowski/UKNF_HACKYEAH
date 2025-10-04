@@ -1,0 +1,477 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// User Management
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  hashedPassword String?
+  firstName     String
+  lastName      String
+  peselMasked   String?  // only last 4 digits visible
+  phone         String?
+  isInternal    Boolean  // UKNF employee?
+  isActive      Boolean  @default(true)
+  roles         UserRole[]
+  accessRequests AccessRequest[]
+  messages      Message[]
+  announcementsRead AnnouncementReadReceipt[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([email])
+  @@index([isInternal])
+  @@index([isActive])
+}
+
+model Role {
+  id          String @id @default(cuid())
+  name        String @unique
+  description String?
+  permissions RolePermission[]
+  users       UserRole[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+}
+
+model Permission {
+  id   String @id @default(cuid())
+  code String @unique // e.g. COMMUNICATION_VIEW, REPORTS_EDIT
+  description String?
+  roles RolePermission[]
+  createdAt DateTime @default(now())
+
+  @@index([code])
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@id([roleId, permissionId])
+}
+
+// Subject Management
+model Subject {
+  id                 Int     @id @default(autoincrement())
+  type               String? // "Instytucja Pożyczkowa" etc.
+  uknfCode           String?
+  name               String
+  lei                String?
+  nip                String?
+  krs                String?
+  street             String?
+  buildingNo         String?
+  unitNo             String?
+  postalCode         String?
+  city               String?
+  phone              String?
+  email              String?
+  registryEntryNo    String?
+  status             String? // Wpisany, Wykreślony
+  category           String?
+  sector             String?
+  subsector          String?
+  isCrossBorder      Boolean @default(false)
+  accessRequests     AccessRequest[]
+  reports            Report[]
+  messageThreads     MessageThread[]
+  cases              Case[]
+  contacts           Contact[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([name])
+  @@index([type])
+  @@index([uknfCode])
+  @@index([nip])
+  @@index([krs])
+  @@index([status])
+  @@unique([nip])
+}
+
+// Access Requests
+model AccessRequest {
+  id          String @id @default(cuid())
+  userId      String
+  subjectId   Int
+  status      String @default("DRAFT") // DRAFT, NEW, APPROVED, BLOCKED, UPDATED
+  description String?
+  lines       AccessRequestLine[]
+  messages    MessageThread[]
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject     Subject @relation(fields: [subjectId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([subjectId])
+  @@index([status])
+  @@unique([userId, subjectId])
+}
+
+model AccessRequestLine {
+  id              String @id @default(cuid())
+  accessRequestId String
+  permission      String // e.g. "REPORTS_VIEW", "CASES_EDIT"
+  accessRequest   AccessRequest @relation(fields: [accessRequestId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@index([accessRequestId])
+}
+
+// Communication - Messages
+model MessageThread {
+  id          String @id @default(cuid())
+  subject     String
+  subjectId   Int?
+  status      String @default("WAITING_FOR_UKNF") // WAITING_FOR_UKNF, WAITING_FOR_USER, CLOSED
+  priority    String @default("MEDIUM") // LOW, MEDIUM, HIGH
+  accessRequestId String?
+  messages    Message[]
+  subjectEntity Subject? @relation(fields: [subjectId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  accessRequest AccessRequest? @relation(fields: [accessRequestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([subjectId])
+  @@index([status])
+  @@index([priority])
+}
+
+model Message {
+  id        String @id @default(cuid())
+  threadId  String
+  userId    String
+  content   String
+  isInternal Boolean @default(false)
+  attachments MessageAttachment[]
+  thread    MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt DateTime @default(now())
+
+  @@index([threadId])
+  @@index([userId])
+  @@index([isInternal])
+}
+
+model MessageAttachment {
+  id        String @id @default(cuid())
+  messageId String
+  filename  String
+  originalName String
+  mimeType  String
+  size      Int
+  filePath  String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+}
+
+// Reports
+model Report {
+  id          String @id @default(cuid())
+  subjectId   Int
+  period      String // e.g. "2025-Q1"
+  register    String // e.g. "Kwartalne", "Roczne"
+  filename    String
+  originalName String
+  mimeType    String
+  size        Int
+  filePath    String?
+  status      String @default("DRAFT") // DRAFT, SUBMITTED, PROCESSING, SUCCESS, VALIDATION_ERRORS, TECH_ERROR, TIMEOUT, DISPUTED_BY_UKNF
+  correctedReportId String? // Link to corrected report
+  validations ReportValidation[]
+  subject     Subject @relation(fields: [subjectId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([subjectId])
+  @@index([status])
+  @@index([period])
+  @@index([register])
+}
+
+model ReportValidation {
+  id          String @id @default(cuid())
+  reportId    String
+  status      String @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  result      String? // SUCCESS, VALIDATION_ERRORS, TECH_ERROR
+  errors      String? // JSON with validation errors
+  reportPath  String? // Path to validation report
+  report      Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  @@index([reportId])
+  @@index([status])
+}
+
+// Cases
+model Case {
+  id          String @id @default(cuid())
+  subjectId   Int
+  title       String
+  description String?
+  category    String // "Zmiana danych rejestrowych", "Sprawozdawczość", etc.
+  priority    String @default("MEDIUM") // LOW, MEDIUM, HIGH
+  status      String @default("DRAFT") // DRAFT, NEW, IN_PROGRESS, NEED_INFO, DONE, CANCELLED
+  attachments CaseAttachment[]
+  subject     Subject @relation(fields: [subjectId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([subjectId])
+  @@index([status])
+  @@index([category])
+  @@index([priority])
+}
+
+model CaseAttachment {
+  id        String @id @default(cuid())
+  caseId    String
+  filename  String
+  originalName String
+  mimeType  String
+  size      Int
+  filePath  String
+  case      Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([caseId])
+}
+
+// Announcements
+model Announcement {
+  id          String @id @default(cuid())
+  title       String
+  content     String
+  priority    String @default("MEDIUM") // LOW, MEDIUM, HIGH
+  isRequired  Boolean @default(false) // Requires acknowledgment for HIGH priority
+  audience    String? // JSON with recipient rules
+  readReceipts AnnouncementReadReceipt[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([priority])
+  @@index([isRequired])
+}
+
+model AnnouncementReadReceipt {
+  id             String @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([announcementId])
+  @@index([userId])
+}
+
+// Library Files
+model LibraryFile {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+  category    String?
+  period      String? // Reporting period
+  updateDate  DateTime? // Template update date
+  isPublic    Boolean @default(false)
+  versions    LibraryFileVersion[]
+  permissions LibraryFilePermission[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([isPublic])
+}
+
+model LibraryFileVersion {
+  id           String @id @default(cuid())
+  libraryFileId String
+  version      Int
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  filePath     String
+  libraryFile  LibraryFile @relation(fields: [libraryFileId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@index([libraryFileId])
+  @@index([version])
+}
+
+model LibraryFilePermission {
+  id           String @id @default(cuid())
+  libraryFileId String
+  type         String // "ALL", "SUBJECTS", "USERS", "GROUPS"
+  targetId     String? // Subject ID, User ID, or Group ID
+  libraryFile  LibraryFile @relation(fields: [libraryFileId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@index([libraryFileId])
+  @@index([type])
+}
+
+// FAQ
+model FaqQuestion {
+  id        String @id @default(cuid())
+  title     String
+  content   String
+  category  String?
+  tags      String? // JSON array
+  status    String @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
+  answers   FaqAnswer[]
+  votes     FaqVote[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([status])
+}
+
+model FaqAnswer {
+  id        String @id @default(cuid())
+  questionId String
+  content   String
+  isOfficial Boolean @default(false) // UKNF official answer
+  question  FaqQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([questionId])
+  @@index([isOfficial])
+}
+
+model FaqVote {
+  id        String @id @default(cuid())
+  questionId String
+  userId    String?
+  rating    Int // 1-5
+  question  FaqQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([questionId, userId])
+  @@index([questionId])
+}
+
+// Contacts and Groups
+model Contact {
+  id        String @id @default(cuid())
+  subjectId Int?
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  position  String?
+  isUser    Boolean @default(false) // Is also a system user
+  userId    String? // Reference to User if isUser = true
+  groups    ContactGroupMember[]
+  subject   Subject? @relation(fields: [subjectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subjectId])
+  @@index([isUser])
+  @@index([userId])
+}
+
+model ContactGroup {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+  members     ContactGroupMember[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+}
+
+model ContactGroupMember {
+  id        String @id @default(cuid())
+  groupId   String
+  contactId String
+  group     ContactGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([groupId, contactId])
+  @@index([groupId])
+  @@index([contactId])
+}
+
+// Recipient Rules
+model RecipientRule {
+  id        String @id @default(cuid())
+  name      String
+  type      String // "SUBJECT_TYPES", "SUBJECTS", "USERS", "GROUPS"
+  criteria  String // JSON with criteria
+  createdAt DateTime @default(now())
+
+  @@index([type])
+}
+
+// Notifications
+model Notification {
+  id        String @id @default(cuid())
+  userId    String
+  title     String
+  content   String
+  type      String // "MESSAGE", "REPORT", "CASE", "ANNOUNCEMENT"
+  entityId  String? // ID of related entity
+  isRead    Boolean @default(false)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([type])
+}
+
+// Audit Log
+model AuditLog {
+  id        String @id @default(cuid())
+  userId    String
+  action    String
+  entity    String
+  entityId  String?
+  before    String? // JSON
+  after     String? // JSON
+  ipAddress String?
+  userAgent String?
+  user      User @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+// Note: Enums are not supported in Azure SQL Edge, using String fields with comments instead
