@@ -5,8 +5,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - DATABASE_URL=file:./dev.db
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/uknf_app?schema=public
       - NEXTAUTH_SECRET=dev_secret_change_me
       - NEXTAUTH_URL=http://localhost:3000
       - S3_ENDPOINT=http://minio:9000
@@ -22,37 +22,40 @@ services:
       - MAX_FILE_SIZE=104857600
       - ALLOWED_FILE_TYPES=pdf,doc,docx,xls,xlsx,csv,txt,mp3,zip
     depends_on:
-      - minio
-      - clamav
-      - redis
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - ./src:/app/src
       - ./prisma:/app/prisma
     command: >
       sh -c "
+        echo 'Waiting for database...' &&
         npx prisma generate &&
         npx prisma migrate deploy &&
         npx prisma db seed &&
-        npm run build &&
-        npm start
+        npm run dev
       "
 
-  # Microsoft SQL Server (ARM64 compatible) - Commented out due to ARM64 issues
-  # mssql:
-  #   image: mcr.microsoft.com/azure-sql-edge:latest
-  #   environment:
-  #     - ACCEPT_EULA=1
-  #     - SA_PASSWORD=Your_Strong!Passw0rd
-  #     - MSSQL_PID=Developer
-  #   ports:
-  #     - "1433:1433"
-  #   volumes:
-  #     - mssql_data:/var/opt/mssql
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Your_Strong!Passw0rd -Q 'SELECT 1' || exit 1"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
+  # PostgreSQL Database (ARM64 and x86_64 compatible)
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=uknf_app
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d uknf_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # MinIO (S3 compatible storage)
   minio:
@@ -116,6 +119,7 @@ services:
       retries: 3
 
 volumes:
+  postgres_data:
   minio_data:
   clamav_data:
   redis_data:
