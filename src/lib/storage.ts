@@ -13,10 +13,13 @@ export class StorageService {
 
   private getClient(): Client {
     if (!this.client) {
+      const endpoint = process.env.S3_ENDPOINT || 'http://localhost:9000'
+      const url = new URL(endpoint)
+      
       this.client = new Client({
-        endPoint: process.env.S3_ENDPOINT?.replace('http://', '').replace('https://', '') || 'localhost',
-        port: parseInt(process.env.S3_PORT || '9000'),
-        useSSL: process.env.S3_USE_SSL === 'true',
+        endPoint: url.hostname,
+        port: parseInt(url.port) || (url.protocol === 'https:' ? 443 : 9000),
+        useSSL: url.protocol === 'https:',
         accessKey: process.env.S3_ACCESS_KEY || 'minio',
         secretKey: process.env.S3_SECRET_KEY || 'miniosecret'
       })
@@ -37,11 +40,16 @@ export class StorageService {
       const exists = await client.bucketExists(BUCKET_NAME)
       if (!exists) {
         await client.makeBucket(BUCKET_NAME, 'us-east-1')
-        console.log(`Created bucket: ${BUCKET_NAME}`)
+        console.log(`✅ Created bucket: ${BUCKET_NAME}`)
+      } else {
+        console.log(`✅ Bucket ${BUCKET_NAME} already exists`)
       }
     } catch (error) {
-      console.error('Failed to initialize storage:', error)
-      throw error
+      console.error('❌ Failed to initialize storage:', error)
+      // Don't throw error in development, just log it
+      if (process.env.NODE_ENV === 'production') {
+        throw error
+      }
     }
   }
 

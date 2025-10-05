@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -40,14 +40,27 @@ export default function NewReportPage() {
 
   const selectedSubjectId = watch('subjectId')
 
-  // Mock subjects - in real app, fetch from API
-  useState(() => {
-    setSubjects([
-      { id: 1, name: "Bank Spółdzielczy w Warszawie", type: "Instytucja Pożyczkowa" },
-      { id: 2, name: "Towarzystwo Ubezpieczeniowe ABC", type: "Towarzystwo Ubezpieczeniowe" },
-      { id: 3, name: "Fundusz Inwestycyjny XYZ", type: "Fundusz Inwestycyjny" }
-    ])
-  })
+  // Fetch subjects from API
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const response = await fetch('/api/subjects')
+        if (response.ok) {
+          const data = await response.json()
+          setSubjects(data.data || [])
+        }
+      } catch (error) {
+        console.error('Failed to fetch subjects:', error)
+        // Fallback to mock data
+        setSubjects([
+          { id: 1, name: "Bank Spółdzielczy w Warszawie", type: "Instytucja Pożyczkowa" },
+          { id: 2, name: "Towarzystwo Ubezpieczeniowe ABC", type: "Towarzystwo Ubezpieczeniowe" },
+          { id: 3, name: "Fundusz Inwestycyjny XYZ", type: "Fundusz Inwestycyjny" }
+        ])
+      }
+    }
+    fetchSubjects()
+  }, [])
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -99,9 +112,9 @@ export default function NewReportPage() {
           period: data.period,
           register: data.register,
           filename: selectedFile.name,
-          size: selectedFile.size,
-          mime: selectedFile.type,
-          description: data.description
+          originalName: selectedFile.name,
+          mimeType: selectedFile.type,
+          size: selectedFile.size
         })
       })
 

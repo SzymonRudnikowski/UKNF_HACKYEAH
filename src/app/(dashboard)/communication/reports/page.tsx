@@ -52,10 +52,29 @@ export default function ReportsPage() {
   const fetchReports = async () => {
     try {
       setLoading(true)
+      console.log('Fetching reports...')
       const response = await fetch('/api/reports')
+      console.log('Response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
-        setReports(data.data || [])
+        console.log('API response:', data)
+        // Map the API response to match our interface
+        const mappedReports = (data.data || []).map((report: any) => ({
+          id: report.id,
+          subject: report.subject?.name || 'Nie przypisano',
+          period: report.period,
+          status: report.status,
+          createdAt: report.createdAt,
+          updatedAt: report.updatedAt,
+          validationResult: report.validations?.[0]?.result,
+          fileSize: report.size,
+          fileName: report.filename
+        }))
+        console.log('Mapped reports:', mappedReports)
+        setReports(mappedReports)
+      } else {
+        console.error('Failed to fetch reports:', response.status, response.statusText)
       }
     } catch (error) {
       console.error('Failed to fetch reports:', error)
@@ -179,15 +198,34 @@ export default function ReportsPage() {
         </Link>
       </div>
 
-      <DataTable
-        data={reports}
-        columns={columns}
-        loading={loading}
-        onSort={handleSort}
-        onExport={handleExport}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-      />
+      {reports.length === 0 && !loading ? (
+        <div className="bg-white shadow rounded-lg p-8 text-center">
+          <DocumentArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">Brak sprawozdań</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Zacznij od utworzenia pierwszego sprawozdania.
+          </p>
+          <div className="mt-6">
+            <Link
+              href="/communication/reports/new"
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Utwórz sprawozdanie
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <DataTable
+          data={reports}
+          columns={columns}
+          loading={loading}
+          onSort={handleSort}
+          onExport={handleExport}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+        />
+      )}
     </div>
   )
 }

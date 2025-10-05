@@ -165,6 +165,9 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Initialize storage if needed
+    await storage.initialize()
+    
     // Generate presigned URL for file upload
     const filePath = `reports/${report.id}/${data.filename}`
     const presignedData = await storage.getPresignedPostUrl(filePath)
